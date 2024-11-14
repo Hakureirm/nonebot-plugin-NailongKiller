@@ -34,5 +34,15 @@ elif config.nailong_model is ModelType.TARGET_DETECTION:
             "and use CPU to compute.",
         ) from e
 
+elif config.nailong_model is ModelType.HF_API:  # 新增
+    try:
+        from .hf_inference import check as check
+    except ImportError as e:
+        raise ImportError(
+            "Missing required library gradio_client.\n"
+            "Please run `pip install gradio_client` "
+            "in your project's environment to install.",
+        ) from e
+
 else:
     raise NotImplementedError  # never reach here

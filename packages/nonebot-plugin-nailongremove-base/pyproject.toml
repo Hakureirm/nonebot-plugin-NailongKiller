@@ -20,6 +20,7 @@ dependencies = [
     "githubkit>=0.11.14",
     "yarl>=1.17.1",
     "tqdm>=4.66.6",
+    "ultralytics>=8.0.0",  # 添加 ultralytics 依赖
 ]
 license = { text = "MIT" }
 readme = "README.md"
@@ -30,6 +31,22 @@ homepage = "https://github.com/Refound-445/nonebot-plugin-nailongremove"
 repository = "https://github.com/Refound-445/nonebot-plugin-nailongremove"
 
 [project.optional-dependencies]
+model0 = [  # 保持原有的可选依赖组
+    "tensorflow>=2.4",
+]
+model1 = [  # 更新目标检测模型依赖
+    "ultralytics>=8.0.0",
+    "torch>=2.0.0",  # ultralytics 需要 torch
+]
+hf = [  # 新增 HF API 的可选依赖组
+    "gradio-client>=1.7.1",
+]
+all = [  # 更新 all 组，包含所有可选依赖
+    "tensorflow>=2.4",
+    "ultralytics>=8.0.0",
+    "torch>=2.0.0",
+    "gradio-client>=1.7.1",
+]
 
 [build-system]
 requires = ["pdm-backend"]

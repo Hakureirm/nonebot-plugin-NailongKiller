@@ -13,6 +13,7 @@ DEFAULT_LABEL = "nailong"
 class ModelType(int, Enum):
     CLASSIFICATION = 0
     TARGET_DETECTION = 1
+    HF_API = 2  # 新增 HF_API 类型
 
 
 class Model1Type(StrEnum):
@@ -41,7 +42,7 @@ class Config(BaseModel):
     nailong_recall: bool = True
     nailong_mute_seconds: int = 0
     nailong_tip: Dict[str, str] = {
-        DEFAULT_LABEL: "本群禁止发送奶龙！",
+        DEFAULT_LABEL: "啊啊啊！好可爱啊这个(*╹▽╹*)",
     }
     nailong_failed_tip: Dict[str, str] = {
         DEFAULT_LABEL: "{:Reply($message_id)}呜，不要发奶龙了嘛 🥺 👉👈",
@@ -55,6 +56,11 @@ class Config(BaseModel):
     nailong_auto_update_model: bool = True
     nailong_concurrency: int = 1
     nailong_onnx_providers: List[str] = ["CPUExecutionProvider"]
+
+    # HF API 相关配置（新增）
+    nailong_hf_model_name: str = "Hakureirm/NailongKiller"
+    nailong_hf_api_timeout: int = 30
+    nailong_hf_retry_times: int = 3
 
     nailong_model1_type: Model1Type = Model1Type.TINY
     nailong_model1_yolox_size: Optional[Tuple[int, int]] = None
@@ -90,14 +96,16 @@ class Config(BaseModel):
 
     @field_validator("nailong_onnx_providers", mode="after")
     def validate_provider_available(cls, v: Any):  # noqa: N805
-        try:
-            from onnxruntime.capi import _pybind_state as c
-        except ImportError:
-            pass
-        else:
-            available_providers: List[str] = c.get_available_providers()  # type: ignore
-            if any(p not in available_providers for p in v):
-                raise ValueError(f"Provider {v} not available in onnxruntime")
+        # 只在使用 TARGET_DETECTION 模型时验证
+        if config.nailong_model == ModelType.TARGET_DETECTION:
+            try:
+                from onnxruntime.capi import _pybind_state as c
+            except ImportError:
+                pass
+            else:
+                available_providers: List[str] = c.get_available_providers()  # type: ignore
+                if any(p not in available_providers for p in v):
+                    raise ValueError(f"Provider {v} not available in onnxruntime")
         return v
 
 

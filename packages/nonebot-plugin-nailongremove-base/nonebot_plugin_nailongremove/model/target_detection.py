@@ -3,10 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 from typing_extensions import override
 
-# import torch before onnxruntime
-import torch as torch  # isort: skip
-import onnxruntime  # isort: skip
-
+from ultralytics import YOLO
 import numpy as np
 from cookit import with_semaphore
 from nonebot.utils import run_sync
@@ -15,27 +12,25 @@ from ..config import config
 from ..frame_source import FrameSource, repack_save
 from .utils.common import CheckResult, CheckSingleResult, race_check
 from .utils.update import GitHubLatestReleaseModelUpdater, ModelInfo, UpdaterGroup
-from .utils.yolox import demo_postprocess, multiclass_nms, preprocess, vis
 
-model_filename_sfx = f"_{config.nailong_model1_type.value}.onnx"
-
+model_filename = "NailongKiller.yolo11n.pt"
 
 class ModelUpdater(GitHubLatestReleaseModelUpdater):
     @override
     def get_info(self) -> ModelInfo[None]:
         info = super().get_info()
-        info.filename = f"nailong{model_filename_sfx}"
+        info.filename = model_filename
         return info
 
-
-OWNER = "nkxingxh"
-REPO = "NailongDetection"
+# 更新 GitHub 仓库信息
+OWNER = "Hakureirm"
+REPO = "NailongKiller"
 
 model_path, labels_path = UpdaterGroup(
     ModelUpdater(
         OWNER,
         REPO,
-        lambda x: x.endswith(model_filename_sfx),
+        lambda x: x == model_filename,
     ),
     GitHubLatestReleaseModelUpdater(
         OWNER,
@@ -43,14 +38,9 @@ model_path, labels_path = UpdaterGroup(
         lambda x: x == "labels.txt",
     ),
 ).get()
-labels = labels_path.read_text("u8").splitlines()
 
-session = onnxruntime.InferenceSession(
-    model_path,
-    providers=config.nailong_onnx_providers,
-)
-input_shape = config.nailong_model1_yolox_size or config.nailong_model1_type.yolox_size
-
+# 加载模型
+model = YOLO(model_path)
 
 @dataclass
 class Detections:
@@ -58,63 +48,41 @@ class Detections:
     scores: np.ndarray
     ids: np.ndarray
 
-
 @dataclass
 class FrameInfo:
     frame: np.ndarray
     detections: Optional[Detections] = None
 
     def vis(self) -> np.ndarray:
-        return (
-            vis(
-                self.frame,
-                self.detections.boxes,
-                self.detections.scores,
-                self.detections.ids,
-                conf=0.3,
-                class_names=labels,
-            )
-            if self.detections
-            else self.frame
-        )
-
+        if not self.detections:
+            return self.frame
+        
+        # 使用 YOLO 的可视化功能
+        results = model.predict(self.frame, conf=0.3, show=False)[0]
+        return results.plot()
 
 @run_sync
 def _check_single(frame: np.ndarray) -> CheckSingleResult[Optional[Detections]]:
-    img, ratio = preprocess(frame, input_shape)
-    ort_inputs = {session.get_inputs()[0].name: img[None, :, :, :]}
-    output = session.run(None, ort_inputs)
-    predictions = demo_postprocess(output[0], input_shape)[0]
-
-    boxes = predictions[:, :4]
-    scores = predictions[:, 4:5] * predictions[:, 5:]
-
-    boxes_xyxy = np.ones_like(boxes)
-    boxes_xyxy[:, 0] = boxes[:, 0] - boxes[:, 2] / 2.0
-    boxes_xyxy[:, 1] = boxes[:, 1] - boxes[:, 3] / 2.0
-    boxes_xyxy[:, 2] = boxes[:, 0] + boxes[:, 2] / 2.0
-    boxes_xyxy[:, 3] = boxes[:, 1] + boxes[:, 3] / 2.0
-    boxes_xyxy /= ratio
-    dets = multiclass_nms(boxes_xyxy, scores, nms_thr=0.45, score_thr=0.1)
-    if dets is None:
+    # 使用 YOLO 进行预测
+    results = model.predict(frame, conf=0.1)[0]
+    
+    if len(results.boxes) == 0:
         return CheckSingleResult.not_ok(None)
 
-    final_boxes, final_scores, final_cls_ids = (
-        dets[:, :4],  # type: ignore
-        dets[:, 4],  # type: ignore
-        dets[:, 5],  # type: ignore
-    )
-    for c, s in zip(final_cls_ids, final_scores):
-        label = labels[int(c)]
+    boxes = results.boxes.xyxy.cpu().numpy()
+    scores = results.boxes.conf.cpu().numpy()
+    cls_ids = results.boxes.cls.cpu().numpy()
+
+    for c, s in zip(cls_ids, scores):
+        label = results.names[int(c)]
         expected = config.nailong_model1_score.get(label)
         if (expected is not None) and s >= expected:
             return CheckSingleResult(
                 ok=True,
                 label=label,
-                extra=Detections(final_boxes, final_scores, final_cls_ids),
+                extra=Detections(boxes, scores, cls_ids),
             )
     return CheckSingleResult.not_ok(None)
-
 
 async def check_single(frame: np.ndarray) -> CheckSingleResult[FrameInfo]:
     res = await _check_single(frame)
@@ -123,7 +91,6 @@ async def check_single(frame: np.ndarray) -> CheckSingleResult[FrameInfo]:
         label=res.label,
         extra=FrameInfo(frame, res.extra),
     )
-
 
 async def check(source: FrameSource) -> CheckResult:
     label = None
