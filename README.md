@@ -1,1 +1,1 @@
-./packages/nonebot-plugin-nailongremove-base/README.md
+./packages/nonebot-plugin-nailongkiller-base/README.md

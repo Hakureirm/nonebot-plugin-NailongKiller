@@ -1,5 +1,5 @@
 [project]
-name = "nonebot-plugin-nailongremove-base"
+name = "nonebot-plugin-nailongkiller-base"
 dynamic = ["version"]
 description = "识别目标并撤回图片插件"
 authors = [
@@ -20,28 +20,28 @@ dependencies = [
     "githubkit>=0.11.14",
     "yarl>=1.17.1",
     "tqdm>=4.66.6",
-    "ultralytics>=8.0.0",  # 添加 ultralytics 依赖
+    "ultralytics>=8.0.0",
 ]
 license = { text = "MIT" }
 readme = "README.md"
 keywords = ["nonebot", "plugin", "image"]
 
 [project.urls]
-homepage = "https://github.com/Refound-445/nonebot-plugin-nailongremove"
-repository = "https://github.com/Refound-445/nonebot-plugin-nailongremove"
+homepage = "https://github.com/Hakureirm/nonebot-plugin-nailongkiller"
+repository = "https://github.com/Hakureirm/nonebot-plugin-nailongkiller"
 
 [project.optional-dependencies]
-model0 = [  # 保持原有的可选依赖组
+model0 = [
     "tensorflow>=2.4",
 ]
-model1 = [  # 更新目标检测模型依赖
+model1 = [
     "ultralytics>=8.0.0",
-    "torch>=2.0.0",  # ultralytics 需要 torch
+    "torch>=2.0.0",
 ]
-hf = [  # 新增 HF API 的可选依赖组
+hf = [
     "gradio-client>=1.7.1",
 ]
-all = [  # 更新 all 组，包含所有可选依赖
+all = [
     "tensorflow>=2.4",
     "ultralytics>=8.0.0",
     "torch>=2.0.0",
@@ -52,9 +52,6 @@ all = [  # 更新 all 组，包含所有可选依赖
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
-[tool.pdm.build]
-includes = []
-
 [tool.pdm.version]
 source = "file"
-path = "nonebot_plugin_nailongremove/__init__.py"
+path = "nonebot_plugin_nailongkiller/__init__.py"
